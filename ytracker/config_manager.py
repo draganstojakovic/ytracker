@@ -1,6 +1,6 @@
 import json
 import os
-from global_constants import PACKAGE_NAME
+from .global_constants import PACKAGE_NAME
 
 
 class _Options:
@@ -16,7 +16,7 @@ class _Options:
             self.download_path = download_path
         else:
             home = os.environ.get('HOME')
-            self.download_path = os.path.join(home, PACKAGE_NAME)
+            self.download_path = os.path.join(home, 'Videos', PACKAGE_NAME)
 
     def _set_split_by_channel(self, split_by_channel: bool | None) -> None:
         if split_by_channel is not None:
