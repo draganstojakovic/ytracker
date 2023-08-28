@@ -1,4 +1,9 @@
 class Criteria:
+    _WHERE = 'WHERE'
+    _ORDER_BY = 'ORDER BY'
+    _AND = 'AND'
+    _OR = 'OR'
+    _DESC = 'DESC'
 
     def __init__(self):
         self._filter = ''
@@ -15,24 +20,17 @@ class Criteria:
         order = self._ordering.strip()
         return f"{filter_query.strip()} {order}".strip()
 
-    def where(self, statement: str, log_op=None):
-        if log_op is None:
-            log_op = 'AND '
-        else:
-            log_op = log_op.upper()
-            log_op = 'OR ' if log_op == 'OR' else 'AND '
-        if self._filter.startswith('WHERE'):
-            self._filter += f'{statement} {log_op}'
-        else:
-            self._filter += f'WHERE {statement} {log_op}'
+    def where(self, statement: str, log_op='AND'):
+        log_op = f'{self._OR} ' if log_op.upper() == self._OR else f'{log_op} '
+        where = '' if self._filter.startswith(self._WHERE) else f'{self._WHERE} '
+        self._filter += f'{where}{statement} {log_op}'
         return self
 
     def order_by(self, column_name: str, order=''):
-        order = order.upper()
-        order = 'DESC' if order == 'DESC' else ''
-        if self._ordering.startswith('ORDER'):
+        order = self._DESC if order.upper() == self._DESC else ''
+        if self._ordering.startswith(self._ORDER_BY):
             self._ordering = self._ordering.strip()
             self._ordering += f', {column_name} {order}'
         else:
-            self._ordering += f'ORDER BY {column_name} {order}'
+            self._ordering += f'{self._ORDER_BY} {column_name} {order}'
         return self
