@@ -9,8 +9,8 @@ class TestCriteria(unittest.TestCase):
 
     def test_init(self):
         self.assertIsInstance(self.criteria, Criteria)
-        self.assertEqual('', self.criteria._filter)
-        self.assertEqual('', self.criteria._ordering)
+        self.assertEqual('', self.criteria._where)
+        self.assertEqual('', self.criteria._order_by)
 
     def test_where_returns_self(self):
         criteria_object = self.criteria.where('')
