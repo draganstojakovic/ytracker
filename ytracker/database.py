@@ -103,21 +103,38 @@ class YouTubeVideo(Table):
 
     def __init__(self, table_id: Optional[int] = None, /):
         super().__init__('download_history')
-        self.table_id: Optional[str] = None
+        self.table_id: Optional[int] = None
         self.video_id: Optional[str] = None
         self.path_on_disk: Optional[str] = None
         self.file_size: Optional[int] = None
         self.deleted: bool = False
-        self.created_at = None
-        self.updated_at = None
+        self.created_at: Optional[str] = None
+        self.updated_at: Optional[str] = None
 
         if table_id is not None:
             self.table_id = table_id
             self._get(('id', table_id))
 
     @classmethod
-    def find_by_video_id(cls, video_id: str):
+    def find_by_video_id(cls, video_id: str) -> Optional['YouTubeVideo']:
         return cls()._get(('youtube_video_id', video_id))
+
+    @classmethod
+    def get_latest_not_deleted_video(cls) -> Optional['YouTubeVideo']:
+        instance = cls()
+        with sqlite3.connect(instance.database.file) as conn:
+            query: str = f"""
+                SELECT * FROM {instance.table_name}
+                WHERE deleted = 0
+                ORDER BY created_at DESC
+                LIMIT 1
+            """
+            video = conn.cursor().execute(query).fetchone()
+            if video is None:
+                return None
+            instance.table_id, instance.video_id, instance.path_on_disk, instance.file_size, \
+                instance.deleted, instance.created_at, instance.updated_at = video
+            return instance
 
     @property
     def video(self) -> dict:
