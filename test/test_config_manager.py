@@ -3,7 +3,7 @@ import json
 import unittest
 import tempfile
 import ytracker.config_manager
-from ytracker.global_constants import PACKAGE_NAME
+from ytracker.constants import PACKAGE_NAME
 
 
 class TestConfig(unittest.TestCase):

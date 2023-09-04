@@ -2,7 +2,7 @@ import os
 import sqlite3
 from typing import Optional, TypeAlias, Any
 from abc import ABC, abstractmethod
-from ytracker.global_constants import PACKAGE_NAME
+from ytracker.constants import PACKAGE_NAME
 
 
 class Database:

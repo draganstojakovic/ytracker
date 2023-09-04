@@ -1,6 +1,6 @@
 import json
 import os
-from ytracker.global_constants import PACKAGE_NAME
+from ytracker.constants import PACKAGE_NAME
 
 
 class _Options:
