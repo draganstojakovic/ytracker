@@ -59,7 +59,8 @@ class Database:
     @staticmethod
     def _table_exists(connection: sqlite3.Connection, table_name: str) -> bool:
         return connection.execute(
-            f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table_name}'"
+            f"SELECT name FROM sqlite_master WHERE type='table' AND name = ?",
+            (table_name,)
         ).fetchone() is not None
 
     @property
@@ -72,7 +73,6 @@ class Database:
                     youtube_video_id TEXT NOT NULL UNIQUE,
                     path_on_disk TEXT NOT NULL,
                     file_size INTEGER NOT NULL,
-                    to_delete BOOLEAN NOT NULL DEFAULT 0,
                     deleted BOOLEAN NOT NULL DEFAULT 0,
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -100,7 +100,7 @@ class Table(ABC):
     __slots__ = 'database', 'table_name'
 
     def __init__(self, table_name: str):
-        self.database = Database().file
+        self.database = Database()
         self.table_name = table_name
 
     @abstractmethod
@@ -108,15 +108,19 @@ class Table(ABC):
         pass
 
     @abstractmethod
-    def save(self) -> None:
+    def save(self) -> bool:
         pass
 
     @abstractmethod
-    def update(self) -> None:
+    def update(self) -> bool:
         pass
 
     @abstractmethod
-    def delete(self) -> None:
+    def delete(self) -> bool:
+        pass
+
+    @abstractmethod
+    def _assert_required_values(self) -> bool:
         pass
 
 
@@ -126,19 +130,17 @@ class YouTubeVideo(Table):
         'video_id',
         'path_on_disk',
         'file_size',
-        'to_delete',
         'deleted',
         'created_at',
         'updated_at'
     )
 
-    def __init__(self, table_id: Optional[int] = None, video_id: Optional[str] = None):
+    def __init__(self, table_id: Optional[int] = None, /):
         super().__init__('download_history')
         self.table_id: Optional[str] = None
         self.video_id: Optional[str] = None
         self.path_on_disk: Optional[str] = None
         self.file_size: Optional[int] = None
-        self.to_delete: bool = False
         self.deleted: bool = False
         self.created_at = None
         self.updated_at = None
@@ -146,9 +148,10 @@ class YouTubeVideo(Table):
         if table_id is not None:
             self.table_id = table_id
             self._get(('id', table_id))
-            return
-        if video_id is not None:
-            self._get(('youtube_video_id', video_id))
+
+    @classmethod
+    def find_by_video_id(cls, video_id: str):
+        return cls()._get(('youtube_video_id', video_id))
 
     @property
     def video(self) -> dict:
@@ -157,15 +160,10 @@ class YouTubeVideo(Table):
             'youtube_video_id': self.video_id,
             'path_on_disk': self.path_on_disk,
             'file_size': self.file_size,
-            'to_delete': bool(self.to_delete),
             'deleted': bool(self.deleted),
             'created_at': self.created_at,
             'updated_at': self.updated_at
         }
-
-    def set_table_id(self, table_id: int | str) -> 'YouTubeVideo':
-        self.table_id = int(table_id)
-        return self
 
     def set_youtube_video_id(self, video_id: str) -> 'YouTubeVideo':
         self.video_id = video_id
@@ -177,10 +175,6 @@ class YouTubeVideo(Table):
 
     def set_file_size(self, file_size: int) -> 'YouTubeVideo':
         self.file_size = file_size
-        return self
-
-    def set_to_delete(self, to_delete: bool) -> 'YouTubeVideo':
-        self.to_delete = to_delete
         return self
 
     def set_deleted(self, deleted: bool) -> 'YouTubeVideo':
@@ -195,36 +189,38 @@ class YouTubeVideo(Table):
         self.updated_at = updated_at
         return self
 
+    def _assert_required_values(self) -> bool:
+        return all(value is not None for value in (
+            self.video_id,
+            self.path_on_disk,
+            self.file_size
+        ))
+
     def _get(self, constraint: CONSTRAINT) -> Optional['YouTubeVideo']:
-        with sqlite3.connect(self.database) as conn:
+        with sqlite3.connect(self.database.file) as conn:
             video = conn.cursor().execute(
                 f"SELECT * FROM {self.table_name} WHERE {constraint[0]} = '{constraint[1]}'"
             ).fetchone()
             if video is None:
                 return None
-            self.table_id = video[0]
-            self.video_id = video[1]
-            self.path_on_disk = video[2]
-            self.file_size = video[3]
-            self.to_delete = video[4]
-            self.deleted = video[5]
-            self.created_at = video[6]
-            self.updated_at = video[7]
+            self.table_id, self.video_id, self.path_on_disk, self.file_size, \
+                self.deleted, self.created_at, self.updated_at = video
             return self
 
     def save(self) -> bool:
-        with sqlite3.connect(self.database) as conn:
+        if not self._assert_required_values():
+            raise ValueError('Cannot save video. Some or all required values are not set.')
+        with sqlite3.connect(self.database.file) as conn:
             cursor = conn.cursor()
-            insert_query: str = """
-                INSERT INTO download_history
-                (youtube_video_id, path_on_disk, file_size, to_delete, deleted)
-                VALUES (?, ?, ?, ?, ?)
+            insert_query: str = f"""
+                INSERT INTO {self.table_name}
+                (youtube_video_id, path_on_disk, file_size, deleted)
+                VALUES (?, ?, ?, ?)
             """
             cursor.execute(insert_query, (
                 self.video_id,
                 self.path_on_disk,
                 self.file_size,
-                self.to_delete,
                 self.deleted
             ))
             conn.commit()
@@ -232,15 +228,14 @@ class YouTubeVideo(Table):
         return cursor.rowcount > 0
 
     def update(self) -> bool:
-        with sqlite3.connect(self.database) as conn:
+        with sqlite3.connect(self.database.file) as conn:
             cursor = conn.cursor()
-            update_query: str = """
-            UPDATE download_history
+            update_query: str = f"""
+            UPDATE {self.table_name}
             SET
                 youtube_video_id = ?,
                 path_on_disk = ?,
                 file_size = ?,
-                to_delete = ?,
                 deleted = ?,
                 updated_at = CURRENT_TIMESTAMP
             WHERE
@@ -250,7 +245,6 @@ class YouTubeVideo(Table):
                 self.video_id,
                 self.path_on_disk,
                 self.file_size,
-                self.to_delete,
                 self.deleted,
                 self.table_id
             ))
@@ -259,37 +253,9 @@ class YouTubeVideo(Table):
         return cursor.rowcount > 0
 
     def delete(self) -> bool:
-        with sqlite3.connect(self.database) as conn:
+        with sqlite3.connect(self.database.file) as conn:
             cursor = conn.cursor()
             cursor.execute(f"DELETE FROM {self.table_name} WHERE id = '{self.table_id}'")
             conn.commit()
 
         return cursor.rowcount > 0
-
-
-class Repository:
-    def __init__(self, database: Database):
-        self.database = database
-
-    def matching(self, criteria: Optional[Criteria] = None) -> list['YouTubeVideo'] | list[None]:
-        with sqlite3.connect(self.database.file) as conn:
-            if criteria is None:
-                query: str = """
-                SELECT * FROM download_history
-                """
-                videos = conn.execute(query).fetchall()
-                print(videos)
-            else:
-                pass
-
-        return videos
-
-
-if __name__ == '__main__':
-    # print(YouTubeVideo()
-    #       .set_youtube_video_id('kurac4')
-    #       .set_path_on_disk('/somewhere-else')
-    #       .set_file_size(2324)
-    #       .save())
-    repo = Repository(Database())
-    repo.matching()
