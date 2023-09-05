@@ -138,10 +138,19 @@ class YouTubeVideo(Table):
 
     @classmethod
     def get_sum_file_size(cls) -> Optional[int]:
-        with sqlite3.connect(cls().database.file) as conn:
+        instance = cls()
+        with sqlite3.connect(instance.database.file) as conn:
             return conn.cursor().execute(
-                f'SELECT SUM(file_size) FROM {cls().table_name} WHERE deleted = 0'
+                f'SELECT SUM(file_size) FROM {instance.table_name} WHERE deleted = 0'
             ).fetchone()[0]
+
+    @classmethod
+    def exists(cls, video_id: str) -> bool:
+        instance = cls()
+        with sqlite3.connect(instance.database.file) as conn:
+            return conn.cursor().execute(
+                f"SELECT COUNT(*) from {instance.table_name} WHERE youtube_video_id = '{video_id}'"
+            ).fetchone()[0] > 0
 
     @property
     def video(self) -> dict:
