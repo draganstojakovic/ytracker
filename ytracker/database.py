@@ -1,7 +1,8 @@
 import os
 import sqlite3
-from typing import Optional, TypeAlias, Any
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from typing import Optional
 from ytracker.constants import PACKAGE_NAME
 
 
@@ -57,9 +58,10 @@ class Database:
         return self._file
 
 
-COLUMN_NAME: TypeAlias = str
-COLUMN_VALUE: TypeAlias = Any
-CONSTRAINT: TypeAlias = tuple[COLUMN_NAME, COLUMN_VALUE]
+@dataclass
+class Constraint:
+    column: str
+    value: int | str | bool
 
 
 class Table(ABC):
@@ -70,7 +72,7 @@ class Table(ABC):
         self.table_name = table_name
 
     @abstractmethod
-    def _get(self, constraint: CONSTRAINT) -> 'Table':
+    def _get(self, constraint: Constraint) -> 'Table':
         pass
 
     @abstractmethod
@@ -113,11 +115,11 @@ class YouTubeVideo(Table):
 
         if table_id is not None:
             self.table_id = table_id
-            self._get(('id', table_id))
+            self._get(Constraint('id', table_id))
 
     @classmethod
     def find_by_video_id(cls, video_id: str) -> Optional['YouTubeVideo']:
-        return cls()._get(('youtube_video_id', video_id))
+        return cls()._get(Constraint('youtube_video_id', video_id))
 
     @classmethod
     def get_latest_not_deleted_video(cls) -> Optional['YouTubeVideo']:
@@ -195,10 +197,10 @@ class YouTubeVideo(Table):
             self.file_size
         ))
 
-    def _get(self, constraint: CONSTRAINT) -> Optional['YouTubeVideo']:
+    def _get(self, constraint: Constraint) -> Optional['YouTubeVideo']:
         with sqlite3.connect(self.database.file) as conn:
             video = conn.cursor().execute(
-                f"SELECT * FROM {self.table_name} WHERE {constraint[0]} = '{constraint[1]}'"
+                f"SELECT * FROM {self.table_name} WHERE {constraint.column} = '{constraint.value}'"
             ).fetchone()
             if video is None:
                 return None
