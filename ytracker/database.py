@@ -26,7 +26,7 @@ class Database:
     @staticmethod
     def _table_exists(connection: sqlite3.Connection, table_name: str) -> bool:
         return connection.execute(
-            f"SELECT name FROM sqlite_master WHERE type='table' AND name = ?",
+            "SELECT name FROM sqlite_master WHERE type='table' AND name = ?",
             (table_name,)
         ).fetchone() is not None
 

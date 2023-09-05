@@ -7,7 +7,6 @@ from ytracker.constants import PACKAGE_NAME
 
 
 class TestConfig(unittest.TestCase):
-
     def setUp(self) -> None:
         self.path_to_config_file = self.config_path()
         self.config = ytracker.config_manager.Config()
