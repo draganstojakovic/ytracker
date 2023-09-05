@@ -1,11 +1,11 @@
 import json
 import os
-from .global_constants import PACKAGE_NAME
+from ytracker.constants import PACKAGE_NAME
 
 
 class _Options:
 
-    def __init__(self, /, download_path=None, split_by_channel=None, refresh_interval=None, storage_size=None):
+    def __init__(self, *, download_path=None, split_by_channel=None, refresh_interval=None, storage_size=None):
         self._set_download_path(download_path)
         self._set_split_by_channel(split_by_channel)
         self._set_refresh_interval(refresh_interval)

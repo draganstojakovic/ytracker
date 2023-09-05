@@ -3,11 +3,10 @@ import json
 import unittest
 import tempfile
 import ytracker.config_manager
-from ytracker.global_constants import PACKAGE_NAME
+from ytracker.constants import PACKAGE_NAME
 
 
 class TestConfig(unittest.TestCase):
-
     def setUp(self) -> None:
         self.path_to_config_file = self.config_path()
         self.config = ytracker.config_manager.Config()
