@@ -86,6 +86,7 @@ class TestDatabase(unittest.TestCase):
         self.assertTrue(YouTubeVideo.find_by_video_id('id4').set_deleted(True).update())
         self.assertTrue(YouTubeVideo.exists('id4'))
         self.assertTrue(YouTubeVideo.find_by_video_id('id4').delete())
+        # TODO add more cases
 
 
 if __name__ == '__main__':
