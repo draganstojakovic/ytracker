@@ -1,6 +1,7 @@
 import os
 import re
 from ytracker.constants import PACKAGE_NAME
+from ytracker.logger import Logger
 
 
 class AllUrlsInvalidException(Exception):
@@ -9,9 +10,10 @@ class AllUrlsInvalidException(Exception):
 
 
 class UrlLoader:
-    __slots__ = '_file_path', '_urls', '_invalid_urls'
+    __slots__ = '_file_path', '_urls', '_invalid_urls', '_logger'
 
     def __init__(self, file_path: str | None = None):
+        self._logger = Logger()
         self._urls: list = []
         self._invalid_urls: list = []
 
@@ -43,10 +45,10 @@ class UrlLoader:
             with open(self._file_path, 'r') as file:
                 return [line.strip() for line in file.readlines()]
         except FileNotFoundError:
-            # TODO LOG critical
+            self._logger.critical(f'Urls file not found.')
             raise SystemExit()
         except IOError:
-            # TODO LOG critical
+            self._logger.critical(f'Error reading file.')
             raise SystemExit()
 
     def _set_valid_urls(self) -> None:
@@ -61,5 +63,6 @@ class UrlLoader:
             raise AllUrlsInvalidException()
 
     def _assert_invalid_urls(self) -> None:
-        # TODO LOG WARNING
-        pass
+        if self._invalid_urls:
+            urls = ', '.join(self._invalid_urls)
+            self._logger.warning(f'Invalid urls: {urls}')
