@@ -4,11 +4,6 @@ from ytracker.constants import PACKAGE_NAME
 from ytracker.logger import Logger
 
 
-class AllUrlsInvalidException(Exception):
-    def __init__(self):
-        super().__init__('All YouTube URLs are invalid.')
-
-
 class UrlLoader:
     __slots__ = '_file_path', '_urls', '_invalid_urls', '_logger'
 
@@ -60,7 +55,8 @@ class UrlLoader:
 
     def _assert_urls(self) -> None:
         if not self._urls:
-            raise AllUrlsInvalidException()
+            self._logger.critical('None of the urls are valid. Exiting...')
+            raise SystemExit()
 
     def _assert_invalid_urls(self) -> None:
         if self._invalid_urls:

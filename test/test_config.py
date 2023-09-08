@@ -2,14 +2,14 @@ import os
 import json
 import unittest
 import tempfile
-import ytracker.config_manager
+import ytracker.config
 from ytracker.constants import PACKAGE_NAME
 
 
 class TestConfig(unittest.TestCase):
     def setUp(self) -> None:
         self.path_to_config_file = self.config_path()
-        self.config = ytracker.config_manager.Config()
+        self.config = ytracker.config.Config()
 
     @staticmethod
     def config_path() -> str:
@@ -18,7 +18,7 @@ class TestConfig(unittest.TestCase):
         return os.path.join(config, 'config.json')
 
     def test_init_config(self):
-        self.assertIsInstance(self.config, ytracker.config_manager.Config)
+        self.assertIsInstance(self.config, ytracker.config.Config)
 
     def test_generate_path_to_config_file(self):
         expected = self.path_to_config_file
@@ -26,7 +26,7 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(expected, actual)
 
     def test_config_options_property(self):
-        self.assertIsInstance(self.config.options, ytracker.config_manager._Options)
+        self.assertIsInstance(self.config.options, ytracker.config._Options)
 
     def test_load_config_existing_valid(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -34,9 +34,9 @@ class TestConfig(unittest.TestCase):
             with open(temp_config_file, 'w') as f:
                 json.dump({
                     'download_path': '/temp/download',
-                    'split_by_channel': True,
                     'refresh_interval': 3,
-                    'storage_size': 10
+                    'storage_size': 10,
+                    'video_quality': '720'
                 }, f)
 
             original_config_path = self.config._config_file_path
@@ -44,9 +44,9 @@ class TestConfig(unittest.TestCase):
 
             self.config._load_config()
             self.assertEqual(self.config.options.download_path, '/temp/download')
-            self.assertEqual(self.config.options.split_by_channel, True)
             self.assertEqual(self.config.options.refresh_interval, 3)
             self.assertEqual(self.config.options.storage_size, 10)
+            self.assertEqual(self.config.options.video_quality, '720')
 
             self.config._config_file_path = original_config_path
 
@@ -59,9 +59,9 @@ class TestConfig(unittest.TestCase):
                 self.config.options.download_path,
                 os.path.join(os.environ.get('HOME'), 'Videos', PACKAGE_NAME)
             )
-            self.assertEqual(self.config.options.split_by_channel, False)
             self.assertEqual(self.config.options.refresh_interval, 2)
             self.assertEqual(self.config.options.storage_size, 5)
+            self.assertEqual(self.config.options.video_quality, '720')
 
     def test_load_config_existing_invalid(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -77,9 +77,9 @@ class TestConfig(unittest.TestCase):
                 self.config.options.download_path,
                 os.path.join(os.environ.get('HOME'), 'Videos', PACKAGE_NAME)
             )
-            self.assertEqual(self.config.options.split_by_channel, False)
             self.assertEqual(self.config.options.refresh_interval, 2)
             self.assertEqual(self.config.options.storage_size, 5)
+            self.assertEqual(self.config.options.video_quality, '720')
 
             self.config._config_file_path = original_config_path
 
