@@ -5,10 +5,13 @@ from ytracker.logger import Logger
 
 
 class _Options:
-    def __init__(self, *, download_path=None, refresh_interval=None, storage_size=None):
+    __slots__ = 'download_path', 'refresh_interval', 'storage_size', 'video_quality'
+
+    def __init__(self, *, download_path=None, refresh_interval=None, storage_size=None, video_quality=None):
         self._set_download_path(download_path)
         self._set_refresh_interval(refresh_interval)
         self._set_storage_size(storage_size)
+        self._set_video_quality(video_quality)
 
     def _set_download_path(self, download_path: str | None) -> None:
         if download_path is not None:
@@ -39,6 +42,13 @@ class _Options:
         else:
             self.storage_size = int(storage_size)
 
+    def _set_video_quality(self, video_quality: str | None) -> None:
+        if video_quality is None:
+            self.video_quality = '720'
+        else:
+            self.video_quality = video_quality \
+                if video_quality in ('360', '480', '720', '1080') else '720'
+
 
 class Config:
     __slots__ = '_logger', '_config_file_path', 'options'
@@ -46,7 +56,8 @@ class Config:
     _DEFAULT_CONFIG = {
         'download_path': os.path.join(os.environ.get('HOME'), 'Videos', PACKAGE_NAME),
         'refresh_interval': 2,
-        'storage_size': 5
+        'storage_size': 5,
+        'video_quality': '720'
     }
 
     def __init__(self):
@@ -67,7 +78,8 @@ class Config:
                 self.options = _Options(
                     download_path=config_data.get('download_path'),
                     refresh_interval=config_data.get('refresh_interval'),
-                    storage_size=config_data.get('storage_size')
+                    storage_size=config_data.get('storage_size'),
+                    video_quality=config_data.get('video_quality')
                 )
         except FileNotFoundError:
             self._logger.warning('Config not found. Creating config...')

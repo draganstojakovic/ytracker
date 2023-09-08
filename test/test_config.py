@@ -35,7 +35,8 @@ class TestConfig(unittest.TestCase):
                 json.dump({
                     'download_path': '/temp/download',
                     'refresh_interval': 3,
-                    'storage_size': 10
+                    'storage_size': 10,
+                    'video_quality': '720'
                 }, f)
 
             original_config_path = self.config._config_file_path
@@ -45,6 +46,7 @@ class TestConfig(unittest.TestCase):
             self.assertEqual(self.config.options.download_path, '/temp/download')
             self.assertEqual(self.config.options.refresh_interval, 3)
             self.assertEqual(self.config.options.storage_size, 10)
+            self.assertEqual(self.config.options.video_quality, '720')
 
             self.config._config_file_path = original_config_path
 
@@ -59,6 +61,7 @@ class TestConfig(unittest.TestCase):
             )
             self.assertEqual(self.config.options.refresh_interval, 2)
             self.assertEqual(self.config.options.storage_size, 5)
+            self.assertEqual(self.config.options.video_quality, '720')
 
     def test_load_config_existing_invalid(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -76,6 +79,7 @@ class TestConfig(unittest.TestCase):
             )
             self.assertEqual(self.config.options.refresh_interval, 2)
             self.assertEqual(self.config.options.storage_size, 5)
+            self.assertEqual(self.config.options.video_quality, '720')
 
             self.config._config_file_path = original_config_path
 
