@@ -41,6 +41,8 @@ class _Options:
 
 
 class Config:
+    __slots__ = '_logger', '_config_file_path', 'options'
+
     _DEFAULT_CONFIG = {
         'download_path': os.path.join(os.environ.get('HOME'), 'Videos', PACKAGE_NAME),
         'refresh_interval': 2,
