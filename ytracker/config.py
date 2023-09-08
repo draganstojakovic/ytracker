@@ -1,13 +1,12 @@
 import json
 import os
 from ytracker.constants import PACKAGE_NAME
+from ytracker.logger import Logger
 
 
 class _Options:
-
-    def __init__(self, *, download_path=None, split_by_channel=None, refresh_interval=None, storage_size=None):
+    def __init__(self, *, download_path=None, refresh_interval=None, storage_size=None):
         self._set_download_path(download_path)
-        self._set_split_by_channel(split_by_channel)
         self._set_refresh_interval(refresh_interval)
         self._set_storage_size(storage_size)
 
@@ -17,12 +16,6 @@ class _Options:
         else:
             home = os.environ.get('HOME')
             self.download_path = os.path.join(home, 'Videos', PACKAGE_NAME)
-
-    def _set_split_by_channel(self, split_by_channel: bool | None) -> None:
-        if split_by_channel is not None:
-            self.split_by_channel = split_by_channel
-        else:
-            self.split_by_channel = False
 
     def _set_refresh_interval(self, refresh_interval: int | None) -> None:
         """
@@ -41,25 +34,21 @@ class _Options:
         """
         if storage_size is None:
             self.storage_size = 5
-            return
-        if storage_size is str:
+        elif type(storage_size) is str:
             self.storage_size = int(float(storage_size))
-            return
-        self.storage_size = int(storage_size)
+        else:
+            self.storage_size = int(storage_size)
 
 
 class Config:
-
-    options: _Options
-
     _DEFAULT_CONFIG = {
         'download_path': os.path.join(os.environ.get('HOME'), 'Videos', PACKAGE_NAME),
-        'split_by_channel': False,
         'refresh_interval': 2,
         'storage_size': 5
     }
 
     def __init__(self):
+        self._logger = Logger()
         self._generate_path_to_config_file()
         self._load_config()
 
@@ -75,14 +64,18 @@ class Config:
                 config_data = json.load(config_file)
                 self.options = _Options(
                     download_path=config_data.get('download_path'),
-                    split_by_channel=config_data.get('split_by_channel'),
                     refresh_interval=config_data.get('refresh_interval'),
                     storage_size=config_data.get('storage_size')
                 )
         except FileNotFoundError:
+            self._logger.warning('Config not found. Creating config...')
             self._create_config_file()
             self.options = _Options()
+        except PermissionError:
+            self._logger.error(f'Insufficient permissions. Cannot read: {self._config_file_path}')
+            self.options = _Options()
         except json.JSONDecodeError:
+            self._logger.error('Parsing config failed. Creating a new config file...')
             self._create_config_file()
             self.options = _Options()
 
@@ -90,5 +83,6 @@ class Config:
         try:
             with open(self._config_file_path, 'w') as config_file:
                 json.dump(self._DEFAULT_CONFIG, config_file, indent=2)
-        except (PermissionError, FileNotFoundError, OSError):
-            pass
+        except (PermissionError, OSError):
+            self._logger.critical(f'Cannot write to: {self._config_file_path}')
+            raise SystemExit()
