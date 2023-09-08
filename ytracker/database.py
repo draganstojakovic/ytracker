@@ -4,12 +4,14 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Optional
 from ytracker.constants import PACKAGE_NAME
+from ytracker.logger import Logger
 
 
 class Database:
-    __slots__ = '_file'
+    __slots__ = '_file', '_logger'
 
     def __init__(self):
+        self._logger = Logger()
         self._file: str = self._set_database_file()
 
     @staticmethod
@@ -53,6 +55,7 @@ class Database:
                     conn.execute(create_index_on_youtube_video_id)
                     conn.commit()
                 except sqlite3.Error:
+                    self._logger.critical('Could not create table.')
                     raise SystemExit()
 
         return self._file
