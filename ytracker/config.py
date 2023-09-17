@@ -1,102 +1,153 @@
 import json
 import os
-from ytracker.constants import PACKAGE_NAME
+from dataclasses import dataclass
 from ytracker.logger import Logger
 
 
-class _Options:
-    __slots__ = 'download_path', 'refresh_interval', 'storage_size', 'video_quality'
+@dataclass(frozen=True, slots=True)
+class CreateConfigStatus:
+    success: bool
+    exception: None | Exception = None
+    msg: str | None = None
+
+
+class Options:
+    __slots__ = '_download_path', '_refresh_interval', '_storage_size', '_video_quality'
 
     def __init__(self, *, download_path=None, refresh_interval=None, storage_size=None, video_quality=None):
-        self._set_download_path(download_path)
-        self._set_refresh_interval(refresh_interval)
-        self._set_storage_size(storage_size)
-        self._set_video_quality(video_quality)
+        self._download_path = download_path
+        self._refresh_interval = refresh_interval
+        self._storage_size = storage_size
+        self._video_quality = video_quality
 
-    def _set_download_path(self, download_path: str | None) -> None:
-        if download_path is not None:
-            self.download_path = download_path
+    @classmethod
+    def create(
+            cls,
+            package_name: str,
+            *,
+            download_path=None,
+            refresh_interval=None,
+            storage_size=None,
+            video_quality=None,
+    ) -> 'Options':
+        download_path: str = download_path if download_path is not None \
+            else os.path.join(os.path.expanduser('~'), 'Videos', package_name)
+
+        refresh_interval: int = int(refresh_interval) if refresh_interval is not None else 120
+
+        if isinstance(storage_size, int):
+            storage_size: int = storage_size
+        elif isinstance(storage_size, float):
+            storage_size: int = int(storage_size)
+        elif isinstance(storage_size, str):
+            storage_size: int = int(float(storage_size))
         else:
-            home = os.environ.get('HOME')
-            self.download_path = os.path.join(home, 'Videos', PACKAGE_NAME)
+            storage_size: int = 5
 
-    def _set_refresh_interval(self, refresh_interval: int | None) -> None:
-        """
+        video_quality: str = video_quality if video_quality in ('360', '480', '720', '1080') else '720'
 
-        :param refresh_interval: defines how often program will check for new content in hours
-        """
-        if refresh_interval is not None:
-            self.refresh_interval = int(refresh_interval)
-        else:
-            self.refresh_interval = 2
+        return cls(
+            download_path=download_path,
+            refresh_interval=refresh_interval,
+            storage_size=storage_size,
+            video_quality=video_quality
+        )
 
-    def _set_storage_size(self, storage_size: int | float | str | None) -> None:
-        """
+    @property
+    def download_path(self) -> str:
+        return self._download_path
 
-        :param storage_size: is maximum amount of gigabytes of storage videos can take
-        """
-        if storage_size is None:
-            self.storage_size = 5
-        elif type(storage_size) is str:
-            self.storage_size = int(float(storage_size))
-        else:
-            self.storage_size = int(storage_size)
+    @property
+    def refresh_interval(self) -> int:
+        return self._refresh_interval
 
-    def _set_video_quality(self, video_quality: str | None) -> None:
-        if video_quality is None:
-            self.video_quality = '720'
-        else:
-            self.video_quality = video_quality \
-                if video_quality in ('360', '480', '720', '1080') else '720'
+    @property
+    def storage_size(self) -> int:
+        return self._storage_size
+
+    @property
+    def video_quality(self) -> str:
+        return self._video_quality
 
 
 class Config:
-    __slots__ = '_logger', '_config_file_path', 'options'
+    __slots__ = '_options',
 
-    _DEFAULT_CONFIG = {
-        'download_path': os.path.join(os.environ.get('HOME'), 'Videos', PACKAGE_NAME),
-        'refresh_interval': 2,
-        'storage_size': 5,
-        'video_quality': '720'
-    }
+    def __init__(self, options: Options | None = None) -> None:
+        self._options = options
 
-    def __init__(self):
-        self._logger = Logger()
-        self._generate_path_to_config_file()
-        self._load_config()
+    @property
+    def options(self) -> 'Options':
+        return self._options
 
-    def _generate_path_to_config_file(self) -> None:
-        home = os.environ.get('HOME')
-        config_path = os.path.join(home, '.config', PACKAGE_NAME)
-        os.makedirs(config_path, exist_ok=True)
-        self._config_file_path = os.path.join(config_path, 'config.json')
+    @options.setter
+    def options(self, options: Options) -> None:
+        self._options = options
 
-    def _load_config(self) -> None:
+    @classmethod
+    def create(cls, package_name: str, logger: Logger) -> 'Config':
+        config = cls()
+        conf_path = config._conf_path(package_name)
         try:
-            with open(self._config_file_path, 'r') as config_file:
+            with open(conf_path, 'r') as config_file:
                 config_data = json.load(config_file)
-                self.options = _Options(
-                    download_path=config_data.get('download_path'),
-                    refresh_interval=config_data.get('refresh_interval'),
-                    storage_size=config_data.get('storage_size'),
-                    video_quality=config_data.get('video_quality')
-                )
-        except FileNotFoundError:
-            self._logger.warning('Config not found. Creating config...')
-            self._create_config_file()
-            self.options = _Options()
-        except PermissionError:
-            self._logger.error(f'Insufficient permissions. Cannot read: {self._config_file_path}')
-            self.options = _Options()
-        except json.JSONDecodeError:
-            self._logger.error('Parsing config failed. Creating a new config file...')
-            self._create_config_file()
-            self.options = _Options()
+        except FileNotFoundError as e:
+            logger.warning(f'File not found: {conf_path}, {e}')
+        except PermissionError as e:
+            logger.error(f'Insufficient permissions. Cannot read: {conf_path}, {e}')
+        except json.JSONDecodeError as e:
+            logger.error(f'Parsing failed: {conf_path}, {e}')
+        else:
+            config.options = Options.create(
+                package_name,
+                download_path=config_data.get('download_path'),
+                refresh_interval=config_data.get('refresh_interval'),
+                storage_size=config_data.get('storage_size'),
+                video_quality=config_data.get('video_quality')
+            )
 
-    def _create_config_file(self) -> None:
+            return config
+        finally:
+            if not isinstance(config.options, Options):
+                config.options = Options.create(package_name)
+                config_created = config._create_config_file(package_name=package_name, conf_path=conf_path)
+                if not config_created.success:
+                    logger.error(f'{config_created.msg}, {config_created.exception}')
+                    # TODO toastify here
+            return config
+
+    @classmethod
+    def _create_config_file(
+            cls,
+            /,
+            package_name: str,
+            conf_path: str,
+            new_config: dict | None = None
+    ) -> 'CreateConfigStatus':
+        if new_config is None:
+            new_config = {
+                'download_path': os.path.join(os.path.expanduser('~'), 'Videos', package_name),
+                'refresh_interval': 2,
+                'storage_size': 5,
+                'video_quality': '720'
+            }
         try:
-            with open(self._config_file_path, 'w') as config_file:
-                json.dump(self._DEFAULT_CONFIG, config_file, indent=2)
-        except (PermissionError, OSError):
-            self._logger.critical(f'Cannot write to: {self._config_file_path}')
-            raise SystemExit()
+            with open(conf_path, 'w') as config_file:
+                json.dump(new_config, config_file, indent=2)
+        except PermissionError as e:
+            return CreateConfigStatus(False, e, f'Permission denied. Failed writing to: {conf_path}')
+        except IOError as e:
+            return CreateConfigStatus(False, e, f'Failed writing to: {conf_path}')
+        else:
+            return CreateConfigStatus(True)
+
+    @staticmethod
+    def _conf_path(package_name: str) -> str:
+        config_path = os.path.join(
+            os.path.expanduser('~'),
+            '.config',
+            package_name
+        )
+        os.makedirs(config_path, exist_ok=True)
+
+        return os.path.join(config_path, 'config.json')
