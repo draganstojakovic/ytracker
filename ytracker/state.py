@@ -3,6 +3,10 @@ from abc import ABC, abstractmethod
 
 class State(ABC):
     @abstractmethod
+    def get(self) -> 'State':
+        pass
+
+    @abstractmethod
     def add(self, new_value) -> 'State':
         pass
 
