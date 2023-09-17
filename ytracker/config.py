@@ -1,7 +1,7 @@
 import json
 import os
 from dataclasses import dataclass
-from ytracker.logger import Logger
+from logger import Logger
 
 
 @dataclass(frozen=True, slots=True)
@@ -119,7 +119,6 @@ class Config:
     @classmethod
     def _create_config_file(
             cls,
-            /,
             package_name: str,
             conf_path: str,
             new_config: dict | None = None
