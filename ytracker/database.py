@@ -1,78 +1,85 @@
 import os
 import sqlite3
 from abc import ABC, abstractmethod
+from constants import PACKAGE_NAME
 from dataclasses import dataclass
-from typing import Optional
-from ytracker.constants import PACKAGE_NAME
-from ytracker.logger import Logger
+from exception import ProgramShouldExit
+from typing import Optional, Callable
 
 
-class Database:
-    __slots__ = '_file', '_logger'
-
-    def __init__(self):
-        self._logger = Logger()
-        self._file: str = self._set_database_file()
-
-    @staticmethod
-    def _set_database_file() -> str:
-        db_root_path: str = os.path.join(
-            os.environ.get('HOME'),
-            '.local',
-            'share',
-            PACKAGE_NAME
-        )
-        os.makedirs(db_root_path, exist_ok=True)
-        return os.path.join(db_root_path, f'{PACKAGE_NAME}.db')
-
-    @staticmethod
-    def _table_exists(connection: sqlite3.Connection, table_name: str) -> bool:
-        return connection.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name = ?",
-            (table_name,)
-        ).fetchone() is not None
+@dataclass(frozen=True, slots=True)
+class DBPath:
+    dir: str
+    file: str
 
     @property
-    def file(self) -> str:
-        with sqlite3.connect(self._file) as conn:
-            if not self._table_exists(conn, 'download_history'):
-                create_table_query: str = """
-                CREATE TABLE download_history (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    youtube_video_id TEXT NOT NULL UNIQUE,
-                    path_on_disk TEXT NOT NULL,
-                    file_size INTEGER NOT NULL,
-                    deleted BOOLEAN NOT NULL DEFAULT 0,
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-                );
-                """
-                create_index_on_youtube_video_id: str = """
-                CREATE INDEX idx_youtube_video_id ON download_history (youtube_video_id);
-                """
-                try:
-                    conn.execute(create_table_query)
-                    conn.execute(create_index_on_youtube_video_id)
-                    conn.commit()
-                except sqlite3.Error:
-                    self._logger.critical('Could not create table.')
-                    raise SystemExit()
-
-        return self._file
+    def full_path(self) -> str:
+        return os.path.join(self.dir, self.file)
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class Constraint:
     column: str
     value: int | str | bool
 
 
-class Table(ABC):
-    __slots__ = 'database', 'table_name'
+class Database:
+    __slots__ = '_file',
 
-    def __init__(self, table_name: str):
-        self.database = Database()
-        self.table_name = table_name
+    def __init__(self, db_file_path: str) -> None:
+        self._file = db_file_path
+
+    @property
+    def file(self) -> str:
+        return self._file
+
+    @classmethod
+    def create(cls, package_name: str, db_file_path: str | None = None) -> 'Database':
+        db = cls.default_db_path(package_name) if db_file_path is None \
+            else cls.parse_db_path(db_file_path)
+        os.makedirs(db.dir, exist_ok=True)
+
+        return cls(db.full_path)
+
+    @staticmethod
+    def parse_db_path(path: str) -> DBPath:
+        try:
+            last_slash_index = path.rindex('/')
+        except ValueError:
+            last_slash_index = None
+
+        get_file_path: Callable[[str], str] = lambda file_path: file_path \
+            if any(ext in path for ext in ('.db', 'db3', 'sqlite', '.sqlite3')) else f'{file_path}.db'
+
+        if last_slash_index is not None:
+            db_path = path[0:last_slash_index]
+            db_file = get_file_path(path[last_slash_index+1:])
+        else:
+            db_path = os.path.expanduser('~')
+            db_file = get_file_path(path)
+
+        return DBPath(dir=db_path, file=db_file)
+
+    @staticmethod
+    def default_db_path(package_name: str) -> DBPath:
+        db_dir = os.path.join(
+            os.path.expanduser('~'),
+            '.local',
+            'share',
+            package_name
+        )
+        return DBPath(dir=db_dir, file=f'{package_name}.db')
+
+
+class Table(ABC):
+    __slots__ = '_database', '_table_name'
+
+    def __init__(self, table_name: str, database: Database):
+        self._table_name = table_name.strip()
+        self._database = database
+        if not self._validate_table():
+            if not self._create_table():
+                raise ProgramShouldExit('Failed creating database.', 1)
 
     @abstractmethod
     def _get(self, constraint: Constraint) -> 'Table':
@@ -91,8 +98,24 @@ class Table(ABC):
         pass
 
     @abstractmethod
-    def _assert_required_values(self) -> bool:
+    def _assert_required(self) -> bool:
         pass
+
+    @abstractmethod
+    def _validate_table(self) -> bool:
+        pass
+
+    @abstractmethod
+    def _create_table(self) -> bool:
+        pass
+
+    @property
+    def table(self) -> str:
+        return self._table_name
+
+    @property
+    def database(self) -> Database:
+        return self._database
 
 
 class YouTubeVideo(Table):
@@ -107,7 +130,7 @@ class YouTubeVideo(Table):
     )
 
     def __init__(self, table_id: Optional[int] = None, /):
-        super().__init__('download_history')
+        super().__init__('download_history', Database.create(PACKAGE_NAME))
         self.table_id: Optional[int] = None
         self.video_id: Optional[str] = None
         self.path_on_disk: Optional[str] = None
@@ -129,7 +152,7 @@ class YouTubeVideo(Table):
         instance = cls()
         with sqlite3.connect(instance.database.file) as conn:
             query: str = f"""
-                SELECT * FROM {instance.table_name}
+                SELECT * FROM {instance.table}
                 WHERE deleted = 0
                 ORDER BY created_at DESC
                 LIMIT 1
@@ -146,7 +169,7 @@ class YouTubeVideo(Table):
         instance = cls()
         with sqlite3.connect(instance.database.file) as conn:
             return conn.cursor().execute(
-                f'SELECT SUM(file_size) FROM {instance.table_name} WHERE deleted = 0'
+                f'SELECT SUM(file_size) FROM {instance.table} WHERE deleted = 0'
             ).fetchone()[0]
 
     @classmethod
@@ -154,7 +177,7 @@ class YouTubeVideo(Table):
         instance = cls()
         with sqlite3.connect(instance.database.file) as conn:
             return conn.cursor().execute(
-                f"SELECT COUNT(*) from {instance.table_name} WHERE youtube_video_id = '{video_id}'"
+                f"SELECT COUNT(*) from {instance.table} WHERE youtube_video_id = '{video_id}'"
             ).fetchone()[0] > 0
 
     @property
@@ -193,17 +216,47 @@ class YouTubeVideo(Table):
         self.updated_at = updated_at
         return self
 
-    def _assert_required_values(self) -> bool:
+    def _assert_required(self) -> bool:
         return all(value is not None for value in (
             self.video_id,
             self.path_on_disk,
             self.file_size
         ))
 
+    def _validate_table(self) -> bool:
+        with sqlite3.connect(self.database.file) as conn:
+            return conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name = ?",
+                (self.table,)
+            ).fetchone() is not None
+
+    def _create_table(self) -> bool:
+        create_table_query = f"""
+        CREATE TABLE {self.table} (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            youtube_video_id TEXT NOT NULL UNIQUE,
+            path_on_disk TEXT NOT NULL,
+            file_size INTEGER NOT NULL,
+            deleted BOOLEAN NOT NULL DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        """
+        create_index_on_youtube_video_id = """
+        CREATE INDEX idx_youtube_video_id ON download_history (youtube_video_id);
+        """
+        with sqlite3.connect(self.database.file) as conn:
+            cursor = conn.cursor()
+            cursor.execute(create_table_query)
+            cursor.execute(create_index_on_youtube_video_id)
+            conn.commit()
+
+        return self._validate_table()
+
     def _get(self, constraint: Constraint) -> Optional['YouTubeVideo']:
         with sqlite3.connect(self.database.file) as conn:
             video = conn.cursor().execute(
-                f"SELECT * FROM {self.table_name} WHERE {constraint.column} = '{constraint.value}'"
+                f"SELECT * FROM {self.table} WHERE {constraint.column} = '{constraint.value}'"
             ).fetchone()
             if video is None:
                 return None
@@ -212,12 +265,12 @@ class YouTubeVideo(Table):
             return self
 
     def save(self) -> bool:
-        if not self._assert_required_values():
+        if not self._assert_required():
             raise ValueError('Cannot save video. Some or all required values are not set.')
         with sqlite3.connect(self.database.file) as conn:
             cursor = conn.cursor()
             insert_query: str = f"""
-                INSERT INTO {self.table_name}
+                INSERT INTO {self.table}
                 (youtube_video_id, path_on_disk, file_size, deleted)
                 VALUES (?, ?, ?, ?)
             """
@@ -235,7 +288,7 @@ class YouTubeVideo(Table):
         with sqlite3.connect(self.database.file) as conn:
             cursor = conn.cursor()
             update_query: str = f"""
-            UPDATE {self.table_name}
+            UPDATE {self.table}
             SET
                 youtube_video_id = ?,
                 path_on_disk = ?,
@@ -259,7 +312,7 @@ class YouTubeVideo(Table):
     def delete(self) -> bool:
         with sqlite3.connect(self.database.file) as conn:
             cursor = conn.cursor()
-            cursor.execute(f"DELETE FROM {self.table_name} WHERE id = '{self.table_id}'")
+            cursor.execute(f"DELETE FROM {self.table} WHERE id = '{self.table_id}'")
             conn.commit()
 
         return cursor.rowcount > 0
