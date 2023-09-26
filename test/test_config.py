@@ -1,87 +1,68 @@
 import os
-import json
 import unittest
-import tempfile
-import ytracker.config
-from ytracker.constants import PACKAGE_NAME
+from ytracker.config import Options, Config
+from ytracker.logger import Logger
 
 
 class TestConfig(unittest.TestCase):
     def setUp(self) -> None:
-        self.path_to_config_file = self.config_path()
-        self.config = ytracker.config.Config()
+        self.home = os.path.expanduser('~')
 
-    @staticmethod
-    def config_path() -> str:
-        home = os.environ.get('HOME')
-        config = os.path.join(home, '.config', PACKAGE_NAME)
-        return os.path.join(config, 'config.json')
+    def test_options(self):
+        options = Options.create(
+            download_path='/some-path',
+            refresh_interval=2,
+            storage_size=10,
+            video_quality='720'
+        )
 
-    def test_init_config(self):
-        self.assertIsInstance(self.config, ytracker.config.Config)
+        self.assertIsNotNone(options)
+        self.assertIsInstance(options, Options)
 
-    def test_generate_path_to_config_file(self):
-        expected = self.path_to_config_file
-        actual = self.config._config_file_path
-        self.assertEqual(expected, actual)
+        self.assertEqual(options.download_path, '/some-path')
+        self.assertEqual(options.refresh_interval, 2)
+        self.assertEqual(options.storage_size, 10)
+        self.assertEqual(options.video_quality, '720')
 
-    def test_config_options_property(self):
-        self.assertIsInstance(self.config.options, ytracker.config._Options)
+        self.assertNotEqual(options.download_path, '/some-wrong-path')
+        self.assertNotEqual(options.refresh_interval, 3)
+        self.assertNotEqual(options.storage_size, 5)
+        self.assertNotEqual(options.video_quality, '1000')
 
-    def test_load_config_existing_valid(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            temp_config_file = os.path.join(temp_dir, 'config.json')
-            with open(temp_config_file, 'w') as f:
-                json.dump({
-                    'download_path': '/temp/download',
-                    'refresh_interval': 3,
-                    'storage_size': 10,
-                    'video_quality': '720'
-                }, f)
+        options = Options.create()
 
-            original_config_path = self.config._config_file_path
-            self.config._config_file_path = temp_config_file
+        self.assertIsNotNone(options)
+        self.assertIsInstance(options, Options)
 
-            self.config._load_config()
-            self.assertEqual(self.config.options.download_path, '/temp/download')
-            self.assertEqual(self.config.options.refresh_interval, 3)
-            self.assertEqual(self.config.options.storage_size, 10)
-            self.assertEqual(self.config.options.video_quality, '720')
+        self.assertEqual(options.download_path, f'{self.home}/Videos/ytracker')
+        self.assertEqual(options.storage_size, 5)
+        self.assertEqual(options.video_quality, '720')
+        self.assertEqual(options.refresh_interval, 120)
 
-            self.config._config_file_path = original_config_path
+    def test_config(self):
+        conf = Config.create(Logger())
 
-    def test_load_config_nonexistent(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            self.config._config_file_path = os.path.join(temp_dir, 'config.json')
+        self.assertIsNotNone(conf)
+        self.assertIsInstance(conf, Config)
+        self.assertIsNotNone(conf.options)
+        self.assertIsInstance(conf.options, Options)
 
-            self.config._load_config()
-            self.assertEqual(
-                self.config.options.download_path,
-                os.path.join(os.environ.get('HOME'), 'Videos', PACKAGE_NAME)
-            )
-            self.assertEqual(self.config.options.refresh_interval, 2)
-            self.assertEqual(self.config.options.storage_size, 5)
-            self.assertEqual(self.config.options.video_quality, '720')
+        self.assertEqual(conf.options.video_quality, '720')
+        self.assertEqual(conf.options.storage_size, 5)
+        self.assertEqual(conf.options.refresh_interval, 2)
+        self.assertEqual(conf.options.download_path, f'{self.home}/Videos/ytracker')
 
-    def test_load_config_existing_invalid(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            temp_config_file = os.path.join(temp_dir, 'config.json')
-            with open(temp_config_file, 'w') as f:
-                f.write("Invalid JSON data")
+        conf.options = Options.create(
+            download_path='/some-path',
+            refresh_interval=2,
+            storage_size=10,
+            video_quality='720'
+        )
 
-            original_config_path = self.config._config_file_path
-            self.config._config_file_path = temp_config_file
-
-            self.config._load_config()
-            self.assertEqual(
-                self.config.options.download_path,
-                os.path.join(os.environ.get('HOME'), 'Videos', PACKAGE_NAME)
-            )
-            self.assertEqual(self.config.options.refresh_interval, 2)
-            self.assertEqual(self.config.options.storage_size, 5)
-            self.assertEqual(self.config.options.video_quality, '720')
-
-            self.config._config_file_path = original_config_path
+        self.assertEqual(conf.options.download_path, '/some-path')
+        self.assertEqual(conf.options.refresh_interval, 2)
+        self.assertEqual(conf.options.storage_size, 10)
+        self.assertEqual(conf.options.video_quality, '720')
 
 
 if __name__ == '__main__':

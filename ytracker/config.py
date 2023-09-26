@@ -1,7 +1,7 @@
 import json
 import os
 from dataclasses import dataclass
-from logger import Logger
+from ytracker.logger import Logger
 
 
 @dataclass(frozen=True, slots=True)
@@ -23,7 +23,6 @@ class Options:
     @classmethod
     def create(
             cls,
-            package_name: str,
             *,
             download_path=None,
             refresh_interval=None,
@@ -31,7 +30,7 @@ class Options:
             video_quality=None,
     ) -> 'Options':
         download_path: str = download_path if download_path is not None \
-            else os.path.join(os.path.expanduser('~'), 'Videos', package_name)
+            else os.path.join(os.path.expanduser('~'), 'Videos', 'ytracker')
 
         refresh_interval: int = int(refresh_interval) if refresh_interval is not None else 120
 
@@ -85,9 +84,9 @@ class Config:
         self._options = options
 
     @classmethod
-    def create(cls, package_name: str, logger: Logger) -> 'Config':
+    def create(cls, logger: Logger) -> 'Config':
         config = cls()
-        conf_path = config._conf_path(package_name)
+        conf_path = config._conf_path()
         try:
             with open(conf_path, 'r') as config_file:
                 config_data = json.load(config_file)
@@ -99,37 +98,29 @@ class Config:
             logger.error(f'Parsing failed: {conf_path}, {e}')
         else:
             config.options = Options.create(
-                package_name,
                 download_path=config_data.get('download_path'),
                 refresh_interval=config_data.get('refresh_interval'),
                 storage_size=config_data.get('storage_size'),
                 video_quality=config_data.get('video_quality')
             )
-
-            return config
         finally:
             if not isinstance(config.options, Options):
-                config.options = Options.create(package_name)
-                config_created = config._create_config_file(package_name=package_name, conf_path=conf_path)
+                config.options = Options.create()
+                config_created = config._create_config_file(conf_path=conf_path)
                 if not config_created.success:
                     logger.error(f'{config_created.msg}, {config_created.exception}')
                     # TODO toastify here
-            return config
+        return config
 
     @classmethod
-    def _create_config_file(
-            cls,
-            package_name: str,
-            conf_path: str,
-            new_config: dict | None = None
-    ) -> 'CreateConfigStatus':
-        if new_config is None:
-            new_config = {
-                'download_path': os.path.join(os.path.expanduser('~'), 'Videos', package_name),
-                'refresh_interval': 2,
-                'storage_size': 5,
-                'video_quality': '720'
-            }
+    def _create_config_file(cls, conf_path: str, new_config=None) -> 'CreateConfigStatus':
+        new_config = {
+            'download_path': os.path.join(os.path.expanduser('~'), 'Videos', 'ytracker'),
+            'refresh_interval': 2,
+            'storage_size': 5,
+            'video_quality': '720'
+        } if new_config is None else new_config
+
         try:
             with open(conf_path, 'w') as config_file:
                 json.dump(new_config, config_file, indent=2)
@@ -141,11 +132,11 @@ class Config:
             return CreateConfigStatus(True)
 
     @staticmethod
-    def _conf_path(package_name: str) -> str:
+    def _conf_path() -> str:
         config_path = os.path.join(
             os.path.expanduser('~'),
             '.config',
-            package_name
+            'ytracker'
         )
         os.makedirs(config_path, exist_ok=True)
 
