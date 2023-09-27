@@ -1,20 +1,19 @@
 import os
 import time
 import unittest
-from ytracker.constants import PACKAGE_NAME
-from ytracker.database import Constraint, Database, YouTubeVideo
+from ytracker.database import Constraint, Database, DBPath, YouTubeVideo
 
 
 class TestDatabase(unittest.TestCase):
     def setUp(self):
         db_path = self.get_db_path()
-        if os.path.exists(db_path):
+        if os.path.isfile(db_path):
             os.remove(db_path)
 
     @classmethod
     def tearDownClass(cls) -> None:
         db_path = cls.get_db_path()
-        if os.path.exists(db_path):
+        if os.path.isfile(db_path):
             os.remove(db_path)
 
     @staticmethod
@@ -23,8 +22,8 @@ class TestDatabase(unittest.TestCase):
             os.environ.get('HOME'),
             '.local',
             'share',
-            PACKAGE_NAME,
-            f'{PACKAGE_NAME}.db'
+            'ytracker',
+            'ytracker.db'
         )
 
     @staticmethod
@@ -47,21 +46,21 @@ class TestDatabase(unittest.TestCase):
         self.assertEqual(constraint.column, 'id')
         self.assertEqual(constraint.value, 1)
 
-    def test_database(self):
-        db_path = self.get_db_path()
-        db = Database()
-        self.assertIsNotNone(db)
-        self.assertIsInstance(db, Database)
-        self.assertEqual(db._file, db_path)
-        self.assertEqual(db.file, db_path)
-        self.assertTrue(os.path.isfile(db.file))
+    def test_DBPath(self):
+        db_path = DBPath('/path/to/', 'database.db')
+        self.assertIsInstance(db_path, DBPath)
+        self.assertEqual(db_path.dir, '/path/to/')
+        self.assertEqual(db_path.file, 'database.db')
+        self.assertEqual(db_path.full_path, '/path/to/database.db')
 
-    def test_youtube_video(self):
-        yt = YouTubeVideo()
-        self.assertIsNotNone(yt)
-        self.assertIsInstance(yt, YouTubeVideo)
+    def test_database(self):
+        db = Database.create('ytracker', 'database.db')
+        self.assertIsInstance(db, Database)
+        self.assertEqual(db.file, os.path.join(os.path.expanduser('~'), 'database.db'))
         self.add_videos()
         yt = YouTubeVideo(1)
+        self.assertIsNotNone(yt)
+        self.assertIsInstance(yt, YouTubeVideo)
         self.assertEqual(yt.video['youtube_video_id'], 'id1')
         self.assertEqual(yt.video['path_on_disk'], '/videos/video.mp4')
         self.assertEqual(yt.video['file_size'], 142234)
