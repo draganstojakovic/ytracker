@@ -1,21 +1,21 @@
 import os
 import json
+from config import Config
 from datetime import datetime
-from typing import Optional
-from yt_dlp import YoutubeDL
-from ytracker.config import Config
 from ytracker.database import YouTubeVideo
 from ytracker.logger import Logger
+from typing import Optional
+from yt_dlp import YoutubeDL
 
 
-class YouTubeChannelInfo:
+class VideoInfo:
     __slots__ = '_channel_urls', '_logger'
 
-    def __init__(self, channel_urls: list[str]):
+    def __init__(self, channel_urls: list[str], logger: Logger) -> None:
         if not channel_urls:
             raise ValueError('Channel list cannot be empty')
         self._channel_urls = channel_urls
-        self._logger = Logger()
+        self._logger = logger
 
     # noinspection PyUnusedLocal
     @staticmethod
@@ -42,15 +42,15 @@ class YouTubeChannelInfo:
 
     def channel_urls(self) -> Optional[tuple]:
         for url in self._channel_urls:
-            yield tuple(video_info.get('url', None) for video_info in self._get_info(url)) or None
+            yield tuple(video_info.get('url', None) for video_info in self._get_info(url))
 
 
-class FetchYouTubeVideo:
+class VideoFetcher:
     __slots__ = '_config', '_logger'
 
-    def __init__(self, config: Config):
-        self._logger = Logger()
-        self._config: Config = config
+    def __init__(self, config: Config, logger: Logger) -> None:
+        self._config = config
+        self._logger = logger
 
     def _format_output_path(self, /, without_format: bool = False) -> str:
         download_path = self._config.options.download_path
