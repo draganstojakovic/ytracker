@@ -1,10 +1,9 @@
 import os
 import sqlite3
 from abc import ABC, abstractmethod
-from constants import PACKAGE_NAME
 from dataclasses import dataclass
-from exception import ProgramShouldExit
 from typing import Optional, Callable
+from ytracker.exception import ProgramShouldExit
 
 
 @dataclass(frozen=True, slots=True)
@@ -130,7 +129,7 @@ class YouTubeVideo(Table):
     )
 
     def __init__(self, table_id: Optional[int] = None, /):
-        super().__init__('download_history', Database.create(PACKAGE_NAME))
+        super().__init__('download_history', Database.create('ytracker'))
         self.table_id: Optional[int] = None
         self.video_id: Optional[str] = None
         self.path_on_disk: Optional[str] = None
