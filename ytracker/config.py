@@ -76,7 +76,7 @@ class Config:
         self._options = options
 
     @property
-    def options(self) -> 'Options':
+    def options(self) -> Options:
         return self._options
 
     @options.setter
