@@ -1,5 +1,6 @@
 import os
 import re
+from enum import Enum
 from ytracker.exception import ProgramShouldExit
 
 
@@ -30,3 +31,28 @@ def load_urls(file_path=None) -> tuple:
         raise ProgramShouldExit('Zero valid YouTube urls.', 1)
 
     return urls
+
+
+class Command(Enum):
+    START = 'start'
+    STOP = 'stop'
+    RESTART = 'restart'
+    HELP = 'help'
+
+
+def parse_args(args: list[str]) -> Command:
+    if len(args) == 1:
+        return Command.HELP
+
+    arg = args[1]
+
+    if arg == 'start':
+        return Command.START
+    if arg == 'stop':
+        return Command.STOP
+    if arg == 'restart':
+        return Command.RESTART
+    if arg == 'help':
+        return Command.HELP
+
+    return Command.HELP
