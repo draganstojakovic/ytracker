@@ -113,7 +113,7 @@ class Config:
         return config
 
     @classmethod
-    def _create_config_file(cls, conf_path: str, new_config=None) -> 'CreateConfigStatus':
+    def _create_config_file(cls, conf_path: str, new_config=None) -> CreateConfigStatus:
         new_config = {
             'download_path': os.path.join(os.path.expanduser('~'), 'Videos', 'ytracker'),
             'refresh_interval': 2,

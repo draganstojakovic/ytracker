@@ -52,25 +52,33 @@ class Daemon:
 
     def __enter__(self) -> None:
         return {
-            'start': lambda: self._start(),
-            'stop': lambda: self._stop(),
-            'restart': lambda: self._restart(),
-        }.get(self._action, None)()
+            'start': lambda: self.start(),
+            'stop': lambda: self.stop(),
+            'restart': lambda: self.restart(),
+        }.get(self._action, lambda: sys.exit(1))()
 
-    def __exit__(self):
-        return True
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.stop()
 
-    def _fork(self) -> None:
+    @staticmethod
+    def is_process_running(pid: int) -> bool:
+        """
+         Try to send a signal with PID 0 to the process.
+         If the process exists, it won't raise an OSError, so that means it is running.
+         Otherwise, it will return False and that means it is not running.
+
+        :param pid:
+        :return:
+        """
         try:
-            pid = os.fork()
-            if pid > 0:
-                sys.exit(0)
-        except OSError as e:
-            self._logger.critical(f'Subprocess forking failed, {e}')
-            sys.exit(1)
+            os.kill(pid, 0)
+        except OSError:
+            return False
+        else:
+            return True
 
-    def _start(self) -> None:
-        self._stop()
+    def start(self) -> None:
+        self._kill(self._pid_manager.read())
         self._logger.info('Starting a new daemon process...')
         self._fork()
         os.chdir('/')
@@ -90,17 +98,20 @@ class Daemon:
             self._logger.critical(f'Failed writing pid "{pid}" to file. '
                                   f'Check if you have write permission.')
             self._kill(pid)
+            sys.exit(1)
         else:
             self._logger.info(f'A new daemon process started: {pid}')
 
-    def _stop(self) -> None:
+    def stop(self) -> None:
         pid = self._pid_manager.read()
         if pid:
+            self._logger.info('Daemon exiting...')
             self._kill(pid)
+            sys.exit(0)
 
-    def _restart(self) -> None:
-        self._stop()
-        self._start()
+    def restart(self) -> None:
+        self.stop()
+        self.start()
 
     def _kill(self, pid: int) -> None:
         try:
@@ -108,3 +119,12 @@ class Daemon:
         except OSError as e:
             if e.errno == 3:
                 self._logger.warning(f'Program of pid "{pid}" is not running.')
+
+    def _fork(self) -> None:
+        try:
+            pid = os.fork()
+            if pid > 0:
+                sys.exit(0)
+        except OSError as e:
+            self._logger.critical(f'Subprocess forking failed, {e}')
+            sys.exit(1)

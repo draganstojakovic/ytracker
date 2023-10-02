@@ -105,14 +105,18 @@ class VideoFetcher:
         if not video_info:
             return False
         self._logger.info(f'Started downloading: {video_url}')
-        with YoutubeDL(
-                {
-                    'quiet': True,
-                    'outtmpl': self._format_output_path(),
-                    'format': self._format_video_format()
-                }
-        ) as ydl:
-            ydl.download(video_url)
+        try:
+            with YoutubeDL(
+                    {
+                        'quiet': True,
+                        'outtmpl': self._format_output_path(),
+                        'format': self._format_video_format()
+                    }
+            ) as ydl:
+                ydl.download(video_url)
+        except Exception as e:
+            self._logger.error(f'YouTubeDL error occurred while downloading video, {e}')
+            return False
 
         if not os.path.isfile(video_info.path_on_disk):
             self._logger.error(f'Video not downloaded: {video_info.path_on_disk}')
