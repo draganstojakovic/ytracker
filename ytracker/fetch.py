@@ -28,20 +28,26 @@ class Urls:
             return 'Video is already downloaded.'
 
     def _get_info(self, playlist_url: str) -> Optional[list[dict]]:
-        with YoutubeDL(
-                {
-                    'match_filter': self._is_downloaded,
-                    'lazy_playlist': True,
-                    'break_per_url': True,
-                    'playlistend': 10,
-                    'extract_flat': True,
-                    'quiet': True,
-                }
-        ) as ydl:
-            self._logger.info(f'Getting videos from playlist: {playlist_url}')
-            return ydl.sanitize_info(
-                ydl.extract_info(playlist_url.strip(), download=False)
-            ).get('entries')
+        try:
+            with YoutubeDL(
+                    {
+                        'match_filter': self._is_downloaded,
+                        'lazy_playlist': True,
+                        'break_per_url': True,
+                        'playlistend': 10,
+                        'extract_flat': True,
+                        'quiet': True,
+                    }
+            ) as ydl:
+                self._logger.info(f'Getting videos from playlist: {playlist_url}')
+                info = ydl.sanitize_info(
+                    ydl.extract_info(playlist_url.strip(), download=False)
+                ).get('entries')
+        except Exception as e:
+            self._logger.error(f'Error occurred while getting video info, {e}')
+            return None
+        else:
+            return info
 
 
 @dataclass(slots=True)

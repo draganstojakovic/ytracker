@@ -1,8 +1,14 @@
 import os
 import re
+import sys
 from enum import Enum
 from ytracker.exception import ProgramShouldExit
 from ytracker.logger import Logger
+
+
+class ExitCode(Enum):
+    SUCCESS = 0
+    FAILURE = 1
 
 
 def is_valid_youtube_url(url: str) -> bool:
@@ -59,7 +65,7 @@ def parse_args(args: list[str]) -> Command:
     return Command.HELP
 
 
-def print_help() -> int:
+def print_help() -> ExitCode.SUCCESS.value:
     print("""
 Usage: ytracker [COMMAND]
 
@@ -71,7 +77,7 @@ Commands:
   restart  Restart the ytracker service.
   help     Show this help message and exit (default).
     """)
-    return 0
+    return ExitCode.SUCCESS.value
 
 
 def program_should_run() -> bool:
@@ -91,3 +97,8 @@ def delete_file(file_path: str, logger: Logger) -> None:
         logger.warning(f'File not found so not deleted: {file_path}')
     except Exception as e:
         logger.error(f'An error occurred while deleting "{file_path}": {e}')
+
+
+def handle_should_exit_exception(e: ProgramShouldExit, logger: Logger) -> None:
+    logger.critical(e.msg)
+    sys.exit(e.code)

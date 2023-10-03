@@ -25,7 +25,6 @@ SOFTWARE.
 import time
 import sys
 
-from enum import Enum
 from typing import Union, Generator
 
 from ytracker.config import Config
@@ -36,6 +35,8 @@ from ytracker.utils import (
     Command,
     convert_gb_to_bytes,
     delete_file,
+    ExitCode,
+    handle_should_exit_exception,
     load_urls,
     parse_args,
     program_should_run,
@@ -45,32 +46,7 @@ from ytracker.logger import Logger
 from ytracker.fetch import Urls, VideoFetcher, VideoInfo
 
 
-logger = Logger()
-config = Config.create(logger)
-
-
-class ExitCode(Enum):
-    SUCCESS = 0
-    FAILURE = 1
-
-
-def handle_save_video_data(video_data: VideoInfo) -> bool:
-    try:
-        saved_video = YouTubeVideo().set_youtube_video_id(
-            video_id=video_data.video_id
-        ).set_path_on_disk(
-            path_on_disk=video_data.path_on_disk
-        ).set_file_size(
-            file_size=video_data.file_size
-        ).save()
-    except ProgramShouldExit as should_exit:
-        logger.critical(should_exit.msg)
-        sys.exit(should_exit.code)
-    else:
-        return saved_video
-
-
-def handle_download_video() -> Generator[Union[VideoInfo, bool], None, None]:
+def handle_download_video(logger: Logger, config: Config) -> Generator[Union[VideoInfo, bool], None, None]:
     try:
         urls = load_urls()
     except ProgramShouldExit as should_exit:
@@ -81,16 +57,17 @@ def handle_download_video() -> Generator[Union[VideoInfo, bool], None, None]:
             yield VideoFetcher(config, logger).download(video_url)
 
 
-def is_not_enough_space() -> bool:
-    sum_file_size = YouTubeVideo.get_sum_file_size()
+def is_not_enough_space(logger: Logger, config: Config) -> bool:
     try:
-        return sum_file_size > convert_gb_to_bytes(config.options.storage_size)
+        sum_file_size = YouTubeVideo.get_sum_file_size()
     except ProgramShouldExit as should_exit:
         logger.critical(should_exit.msg)
         sys.exit(should_exit.code)
+    else:
+        return sum_file_size > convert_gb_to_bytes(config.options.storage_size)
 
 
-def main(argv: list) -> int:
+def main(argv: list, logger: Logger, config: Config) -> int:
     command = parse_args(argv)
 
     if command.value == Command.HELP.value:
@@ -101,21 +78,40 @@ def main(argv: list) -> int:
             return ExitCode.SUCCESS.value
 
         while program_should_run():
-            for result in handle_download_video():
-                if isinstance(result, VideoInfo):
-                    handle_save_video_data(result)
+            for result in handle_download_video(logger, config):
+                if not isinstance(result, VideoInfo):
+                    continue
 
-            while is_not_enough_space():
-                video = YouTubeVideo.get_latest_not_deleted_video().set_deleted(True)
-                video.update()
+                try:
+                    new_video = YouTubeVideo() \
+                        .set_youtube_video_id(result.video_id) \
+                        .set_path_on_disk(result.path_on_disk) \
+                        .set_file_size(result.file_size)
+                    save_result = new_video.save()
+                except ProgramShouldExit as should_exit:
+                    handle_should_exit_exception(should_exit, logger)
+                finally:
+                    if not save_result:
+                        logger.error(f'Failed saving video to database: {new_video.path_on_disk}')
+
+            while is_not_enough_space(logger, config):
+                try:
+                    video = YouTubeVideo.get_latest_not_deleted_video().set_deleted(True)
+                    video.update()
+                except ProgramShouldExit as should_exit:
+                    handle_should_exit_exception(should_exit, logger)
+
                 delete_file(video.path_on_disk, logger)
 
-            time.sleep(config.options.refresh_interval * 60)
+            wait_time = config.options.refresh_interval * 60
+            logger.info(f'Sleeping for {wait_time} minutes...')
+            time.sleep(config.options.refresh_interval * 3600)
 
 
 if __name__ == '__main__':
+    default_logger = Logger()
     try:
-        sys.exit(main(sys.argv))
+        sys.exit(main(sys.argv, default_logger, Config.create(default_logger)))
     except Exception as e:
-        logger.critical(str(e))
+        default_logger.critical(str(e))
         sys.exit(ExitCode.FAILURE.value)
