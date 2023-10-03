@@ -50,8 +50,7 @@ def handle_download_video(logger: Logger, config: Config) -> Generator[Union[Vid
     try:
         urls = load_urls()
     except ProgramShouldExit as should_exit:
-        logger.critical(should_exit.msg)
-        sys.exit(should_exit.code)
+        handle_should_exit_exception(should_exit, logger)
     else:
         for video_url in Urls(urls, logger):
             yield VideoFetcher(config, logger).download(video_url)
@@ -61,8 +60,7 @@ def is_not_enough_space(logger: Logger, config: Config) -> bool:
     try:
         sum_file_size = YouTubeVideo.get_sum_file_size()
     except ProgramShouldExit as should_exit:
-        logger.critical(should_exit.msg)
-        sys.exit(should_exit.code)
+        handle_should_exit_exception(should_exit, logger)
     else:
         return sum_file_size > convert_gb_to_bytes(config.options.storage_size)
 
