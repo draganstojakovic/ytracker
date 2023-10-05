@@ -1,9 +1,14 @@
+altgraph==0.17.4
 Brotli==1.1.0
 certifi==2023.7.22
 docutils==0.20.1
 lockfile==0.12.2
 mutagen==1.47.0
+packaging==23.2
+psutil==5.9.5
 pycryptodomex==3.18.0
+pyinstaller==6.0.0
+pyinstaller-hooks-contrib==2023.9
 websockets==11.0.3
 yt-dlp==2023.7.6
--e git+ssh://git@github.com/draganStojakovic/ytracker.git@a9910ee76df7d6557976b49dde7c36758e8ef3bd#egg=ytracker
+-e git+ssh://git@github.com/draganStojakovic/ytracker.git@72355be9ac803be8e0046fc1328d170510c4799d#egg=ytracker

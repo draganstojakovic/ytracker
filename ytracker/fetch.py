@@ -1,7 +1,7 @@
 import os
-from config import Config
 from dataclasses import dataclass
 from datetime import datetime
+from ytracker.config import Config
 from ytracker.database import YouTubeVideo
 from ytracker.logger import Logger
 from typing import Optional
