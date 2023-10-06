@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='ytracker',
-    version='0.0.1',
+    version='2023.10.06',
     description='YouTube feed downloader',
     author='Dragan Stojaković',
     url='https://github.com/draganstojakovic/ytracker',
@@ -14,6 +14,11 @@ setup(
         'websockets',
         'yt-dlp'
     ],
+    entry_points={
+        'console_scripts': [
+            'ytracker = ytracker.__main__:main',
+        ],
+    },
     classifiers=[
         'License :: OSI Approved :: MIT License',
         'Operating System :: POSIX :: Linux',
