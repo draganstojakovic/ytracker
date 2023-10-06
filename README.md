@@ -78,5 +78,5 @@ video_quality
 
 ### Note
 
-This program is Unix only, so no Windows Os support, and it was only tested on Debian GNU/Linux,
-so it may not work of Apple devices.
+This program is Unix only, so no Windows OS support, and it was only tested on Debian GNU/Linux,
+so it may not work on Apple devices.
