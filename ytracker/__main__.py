@@ -22,7 +22,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-import time
 import sys
 
 from typing import Union, Generator
@@ -40,13 +39,14 @@ from ytracker.utils import (
     load_urls,
     parse_args,
     program_should_run,
-    print_help
+    print_help,
+    sleep
 )
 from ytracker.logger import Logger
 from ytracker.fetch import Urls, VideoFetcher, VideoInfo
 
 
-def handle_download_video(logger: Logger, config: Config) -> Generator[Union[VideoInfo, bool], None, None]:
+def download_video(logger: Logger, config: Config) -> Generator[Union[VideoInfo, bool], None, None]:
     try:
         urls = load_urls()
     except ProgramShouldExit as should_exit:
@@ -65,18 +65,20 @@ def is_not_enough_space(logger: Logger, config: Config) -> bool:
         return sum_file_size > convert_gb_to_bytes(config.options.storage_size)
 
 
-def main(argv: list, logger: Logger, config: Config) -> int:
+def ytracker(argv: list, logger: Logger) -> int:
     command = parse_args(argv)
 
     if command.value == Command.HELP.value:
         return print_help()
+
+    config = Config.create(logger)
 
     with Daemon(command.value, PidFileManager(), logger):
         if command == Command.STOP.value:
             return ExitCode.SUCCESS.value
 
         while program_should_run():
-            for result in handle_download_video(logger, config):
+            for result in download_video(logger, config):
                 if not isinstance(result, VideoInfo):
                     continue
 
@@ -101,15 +103,17 @@ def main(argv: list, logger: Logger, config: Config) -> int:
 
                 delete_file(video.path_on_disk, logger)
 
-            wait_time = config.options.refresh_interval * 60
-            logger.info(f'Sleeping for {wait_time} minutes...')
-            time.sleep(config.options.refresh_interval * 3600)
+            sleep(logger, config)
 
 
-if __name__ == '__main__':
+def main():
     default_logger = Logger()
     try:
-        sys.exit(main(sys.argv, default_logger, Config.create(default_logger)))
+        sys.exit(ytracker(sys.argv, default_logger))
     except Exception as e:
         default_logger.critical(str(e))
         sys.exit(ExitCode.FAILURE.value)
+
+
+if __name__ == '__main__':
+    main()

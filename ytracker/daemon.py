@@ -41,7 +41,7 @@ class Daemon:
 
     def __init__(
             self,
-            action: Literal['start', 'stop', 'restart'],
+            action: Literal['start', 'stop'],
             /,
             pid_manager: PidFileManager,
             logger: Logger
@@ -54,7 +54,6 @@ class Daemon:
         return {
             'start': lambda: self.start(),
             'stop': lambda: self.stop(),
-            'restart': lambda: self.restart(),
         }.get(self._action, lambda: sys.exit(1))()
 
     def __exit__(self, exc_type, exc_value, traceback):
@@ -108,10 +107,6 @@ class Daemon:
             self._logger.info('Daemon exiting...')
             self._kill(pid)
             sys.exit(0)
-
-    def restart(self) -> None:
-        self.stop()
-        self.start()
 
     def _kill(self, pid: int) -> None:
         try:

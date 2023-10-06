@@ -1,7 +1,9 @@
+import time
 import os
 import re
 import sys
 from enum import Enum
+from ytracker.config import Config
 from ytracker.exception import ProgramShouldExit
 from ytracker.logger import Logger
 
@@ -43,7 +45,6 @@ def load_urls(file_path=None) -> tuple:
 class Command(Enum):
     START = 'start'
     STOP = 'stop'
-    RESTART = 'restart'
     HELP = 'help'
 
 
@@ -57,8 +58,6 @@ def parse_args(args: list[str]) -> Command:
         return Command.START
     if arg == 'stop':
         return Command.STOP
-    if arg == 'restart':
-        return Command.RESTART
     if arg == 'help':
         return Command.HELP
 
@@ -74,7 +73,6 @@ Manage the ytracker service.
 Commands:
   start    Start the ytracker service.
   stop     Stop the ytracker service.
-  restart  Restart the ytracker service.
   help     Show this help message and exit (default).
     """)
     return ExitCode.SUCCESS.value
@@ -102,3 +100,9 @@ def delete_file(file_path: str, logger: Logger) -> None:
 def handle_should_exit_exception(e: ProgramShouldExit, logger: Logger) -> None:
     logger.critical(e.msg)
     sys.exit(e.code)
+
+
+def sleep(logger: Logger, config: Config) -> None:
+    wait_time = config.options.refresh_interval * 60
+    logger.info(f'Sleeping for {wait_time} minutes...')
+    time.sleep(config.options.refresh_interval * 3600)
