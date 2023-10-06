@@ -14,7 +14,14 @@ class CreateConfigStatus:
 class Options:
     __slots__ = '_download_path', '_refresh_interval', '_storage_size', '_video_quality'
 
-    def __init__(self, *, download_path=None, refresh_interval=None, storage_size=None, video_quality=None):
+    def __init__(
+            self,
+            *,
+            download_path=os.path.join(os.path.expanduser('~'), 'Videos', 'ytracker'),
+            refresh_interval=2,
+            storage_size=5,
+            video_quality='720'
+    ):
         self._download_path = download_path
         self._refresh_interval = refresh_interval
         self._storage_size = storage_size
@@ -54,18 +61,34 @@ class Options:
 
     @property
     def download_path(self) -> str:
+        """
+        Returns path where videos are placed.
+        :return:
+        """
         return self._download_path
 
     @property
     def refresh_interval(self) -> int:
+        """
+        Returns refresh interval defined in hours.
+        :return:
+        """
         return self._refresh_interval
 
     @property
     def storage_size(self) -> int:
+        """
+        Returns maximum allowed size on disk that videos can take.
+        :return:
+        """
         return self._storage_size
 
     @property
     def video_quality(self) -> str:
+        """
+        Returns download video resolution.
+        :return:
+        """
         return self._video_quality
 
 
@@ -113,7 +136,7 @@ class Config:
         return config
 
     @classmethod
-    def _create_config_file(cls, conf_path: str, new_config=None) -> 'CreateConfigStatus':
+    def _create_config_file(cls, conf_path: str, new_config=None) -> CreateConfigStatus:
         new_config = {
             'download_path': os.path.join(os.path.expanduser('~'), 'Videos', 'ytracker'),
             'refresh_interval': 2,

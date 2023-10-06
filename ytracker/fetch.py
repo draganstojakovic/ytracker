@@ -1,7 +1,7 @@
 import os
-from config import Config
 from dataclasses import dataclass
 from datetime import datetime
+from ytracker.config import Config
 from ytracker.database import YouTubeVideo
 from ytracker.logger import Logger
 from typing import Optional
@@ -28,20 +28,26 @@ class Urls:
             return 'Video is already downloaded.'
 
     def _get_info(self, playlist_url: str) -> Optional[list[dict]]:
-        with YoutubeDL(
-                {
-                    'match_filter': self._is_downloaded,
-                    'lazy_playlist': True,
-                    'break_per_url': True,
-                    'playlistend': 10,
-                    'extract_flat': True,
-                    'quiet': True,
-                }
-        ) as ydl:
-            self._logger.info(f'Getting videos from playlist: {playlist_url}')
-            return ydl.sanitize_info(
-                ydl.extract_info(playlist_url.strip(), download=False)
-            ).get('entries')
+        try:
+            with YoutubeDL(
+                    {
+                        'match_filter': self._is_downloaded,
+                        'lazy_playlist': True,
+                        'break_per_url': True,
+                        'playlistend': 10,
+                        'extract_flat': True,
+                        'quiet': True,
+                    }
+            ) as ydl:
+                self._logger.info(f'Getting videos from playlist: {playlist_url}')
+                info = ydl.sanitize_info(
+                    ydl.extract_info(playlist_url.strip(), download=False)
+                ).get('entries')
+        except Exception as e:
+            self._logger.error(f'Error occurred while getting video info, {e}')
+            return None
+        else:
+            return info
 
 
 @dataclass(slots=True)
@@ -105,14 +111,18 @@ class VideoFetcher:
         if not video_info:
             return False
         self._logger.info(f'Started downloading: {video_url}')
-        with YoutubeDL(
-                {
-                    'quiet': True,
-                    'outtmpl': self._format_output_path(),
-                    'format': self._format_video_format()
-                }
-        ) as ydl:
-            ydl.download(video_url)
+        try:
+            with YoutubeDL(
+                    {
+                        'quiet': True,
+                        'outtmpl': self._format_output_path(),
+                        'format': self._format_video_format()
+                    }
+            ) as ydl:
+                ydl.download(video_url)
+        except Exception as e:
+            self._logger.error(f'YouTubeDL error occurred while downloading video, {e}')
+            return False
 
         if not os.path.isfile(video_info.path_on_disk):
             self._logger.error(f'Video not downloaded: {video_info.path_on_disk}')
