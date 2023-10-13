@@ -3,7 +3,6 @@ import os
 import re
 import sys
 from enum import Enum
-from ytracker.config import Config
 from ytracker.exception import ProgramShouldExit
 from ytracker.logger import Logger
 
@@ -102,7 +101,7 @@ def handle_should_exit_exception(e: ProgramShouldExit, logger: Logger) -> None:
     sys.exit(e.code)
 
 
-def sleep(logger: Logger, config: Config) -> None:
-    wait_time = config.options.refresh_interval * 60
+def sleep(logger: Logger, hours: int) -> None:
+    wait_time = hours * 60
     logger.info(f'Sleeping for {wait_time} minutes...')
-    time.sleep(config.options.refresh_interval * 3600)
+    time.sleep(hours * 3600)

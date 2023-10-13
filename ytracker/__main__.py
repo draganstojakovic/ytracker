@@ -103,7 +103,7 @@ def ytracker(argv: list, logger: Logger) -> int:
 
                 delete_file(video.path_on_disk, logger)
 
-            sleep(logger, config)
+            sleep(logger, config.options.refresh_interval)
 
 
 def main():
