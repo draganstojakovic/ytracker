@@ -9,11 +9,12 @@ from yt_dlp import YoutubeDL
 
 
 class Urls:
-    __slots__ = '_channel_urls', '_logger'
+    __slots__ = '_channel_urls', '_logger', '_config'
 
-    def __init__(self, channel_urls: tuple, logger: Logger) -> None:
+    def __init__(self, channel_urls: tuple, logger: Logger, config: Config) -> None:
         self._channel_urls = channel_urls
         self._logger = logger
+        self._config = config
 
     def __iter__(self) -> str | None:
         for channel_url in self._channel_urls:
@@ -34,7 +35,7 @@ class Urls:
                         'match_filter': self._is_downloaded,
                         'lazy_playlist': True,
                         'break_per_url': True,
-                        'playlistend': 10,
+                        'playlistend': self._compute_playlist_end(),
                         'extract_flat': True,
                         'quiet': True,
                     }
@@ -48,6 +49,24 @@ class Urls:
             return None
         else:
             return info
+
+    def _compute_playlist_end(self) -> int:
+        """
+        Calculate the ending value of a playlist based on the configured refresh interval.
+
+        This function calculates the ending value of a playlist, where the return value starts at 1 and
+        increases by 20% every 2 hours, as specified by the refresh interval in the configuration options.
+
+        Returns:
+            int: The calculated ending value of the playlist, rounded to the nearest integer.
+        """
+        return_value = 1
+        increase_factor = 0.2
+        num_2_hour_periods = self._config.options.refresh_interval // 2
+        for _ in range(num_2_hour_periods):
+            return_value += return_value * increase_factor
+
+        return round(return_value)
 
 
 @dataclass(slots=True)

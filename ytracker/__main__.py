@@ -52,7 +52,7 @@ def download_video(logger: Logger, config: Config) -> Generator[Union[VideoInfo,
     except ProgramShouldExit as should_exit:
         handle_should_exit_exception(should_exit, logger)
     else:
-        for video_url in Urls(urls, logger):
+        for video_url in Urls(urls, logger, config):
             yield VideoFetcher(config, logger).download(video_url)
 
 
