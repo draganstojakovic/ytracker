@@ -52,8 +52,9 @@ def download_video(logger: Logger, config: Config) -> Generator[Union[VideoInfo,
     except ProgramShouldExit as should_exit:
         handle_should_exit_exception(should_exit, logger)
     else:
+        fetcher = VideoFetcher(config, logger)
         for video_url in Urls(urls, logger, config):
-            yield VideoFetcher(config, logger).download(video_url)
+            yield fetcher.download(video_url)
 
 
 def is_not_enough_space(logger: Logger, config: Config) -> bool:
@@ -62,6 +63,10 @@ def is_not_enough_space(logger: Logger, config: Config) -> bool:
     except ProgramShouldExit as should_exit:
         handle_should_exit_exception(should_exit, logger)
     else:
+        if sum_file_size is None:
+            logger.error(f'Failed determining the')
+            return False
+
         return sum_file_size > convert_gb_to_bytes(config.options.storage_size)
 
 
@@ -94,14 +99,23 @@ def ytracker(argv: list, logger: Logger) -> int:
                     if not save_result:
                         logger.error(f'Failed saving video to database: {new_video.path_on_disk}')
 
+            delete_attempts = 3
+
             while is_not_enough_space(logger, config):
+                if delete_attempts == 0:
+                    logger.error('Failed deleting a video too many times.')
+                    break
                 try:
                     video = YouTubeVideo.get_latest_not_deleted_video().set_deleted(True)
                     video.update()
                 except ProgramShouldExit as should_exit:
                     handle_should_exit_exception(should_exit, logger)
-
-                delete_file(video.path_on_disk, logger)
+                except Exception as e:
+                    delete_attempts -= 1
+                    logger.error(f'Unexpected exception: {e}')
+                    continue
+                else:
+                    delete_file(video.path_on_disk, logger)
 
             sleep(logger, config.options.refresh_interval)
 
