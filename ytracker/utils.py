@@ -94,6 +94,8 @@ def delete_file(file_path: str, logger: Logger) -> None:
         logger.warning(f'File not found so not deleted: {file_path}')
     except Exception as e:
         logger.error(f'An error occurred while deleting "{file_path}": {e}')
+    else:
+        logger.info(f'Deleted: {file_path}')
 
 
 def handle_should_exit_exception(e: ProgramShouldExit, logger: Logger) -> None:
