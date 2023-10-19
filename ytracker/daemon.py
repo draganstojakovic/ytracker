@@ -77,7 +77,9 @@ class Daemon:
             return True
 
     def start(self) -> None:
-        self._kill(self._pid_manager.read())
+        pid = self._pid_manager.read()
+        if pid:
+            self._kill(pid)
         self._logger.info('Starting a new daemon process...')
         self._fork()
         os.chdir('/')
