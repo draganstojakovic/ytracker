@@ -106,7 +106,7 @@ def ytracker(argv: list, logger: Logger) -> int:
                     logger.error('Failed deleting a video too many times.')
                     break
                 try:
-                    video = YouTubeVideo.get_latest_not_deleted_video().set_deleted(True)
+                    video = YouTubeVideo.get_oldest_not_deleted_video().set_deleted(True)
                     video.update()
                 except ProgramShouldExit as should_exit:
                     handle_should_exit_exception(should_exit, logger)

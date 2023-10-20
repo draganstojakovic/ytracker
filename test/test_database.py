@@ -69,7 +69,7 @@ class TestDatabase(unittest.TestCase):
         self.assertIsNotNone(video)
         self.assertEqual(video.video['youtube_video_id'], 'id3')
         self.assertEqual(video.video['deleted'], True)
-        last_not_deleted_video = YouTubeVideo.get_latest_not_deleted_video()
+        last_not_deleted_video = YouTubeVideo.get_oldest_not_deleted_video()
         self.assertIsNotNone(last_not_deleted_video)
         self.assertEqual(last_not_deleted_video.video['youtube_video_id'], 'id2')
         file_size_sum = YouTubeVideo.get_sum_file_size()

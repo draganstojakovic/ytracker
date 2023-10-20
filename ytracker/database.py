@@ -147,7 +147,7 @@ class YouTubeVideo(Table):
         return cls()._get(Constraint('youtube_video_id', video_id))
 
     @classmethod
-    def get_latest_not_deleted_video(cls) -> Optional['YouTubeVideo']:
+    def get_oldest_not_deleted_video(cls) -> Optional['YouTubeVideo']:
         instance = cls()
         with sqlite3.connect(instance.database.file) as conn:
             query: str = f"""
