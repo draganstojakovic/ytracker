@@ -64,7 +64,8 @@ def is_not_enough_space(logger: Logger, config: Config) -> bool:
         handle_should_exit_exception(should_exit, logger)
     else:
         if sum_file_size is None:
-            logger.error(f'Failed determining the')
+            logger.error(f'Failed determining the summed file size of all videos.')
+            # TODO: walk through folder and check each file
             return False
 
         return sum_file_size > convert_gb_to_bytes(config.options.storage_size)
